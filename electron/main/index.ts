@@ -223,14 +223,14 @@ ipcMain.on('onDirectoryStorage', async (event, photosDirectory, videosDirectory)
   }
 
   // Ahora, puedes realizar la lectura de directorio con las rutas actualizadas
-  fs.readdir(photosDirectory, (err, photoFiles) => {
+  fs.readdir(photosDirectory, (err: Error, photoFiles: []) => {
     if (err) {
       response.error = err;
     } else {
       response.photos = photoFiles;
 
       // Realizar la lectura del directorio de videos
-      fs.readdir(videosDirectory, (err, videoFiles) => {
+      fs.readdir(videosDirectory, (err: Error, videoFiles: []) => {
         if (err) {
           response.error = err;
         } else {
@@ -238,7 +238,7 @@ ipcMain.on('onDirectoryStorage', async (event, photosDirectory, videosDirectory)
         }
 
         // Enviar la respuesta una vez que tengas ambos conjuntos de datos
-        event.reply('respuestaOnDirectoryStorage', response);
+        event.reply('resquestOnDirectoryStorage', response);
       });
     }
   });
