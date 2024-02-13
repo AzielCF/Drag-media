@@ -37,8 +37,8 @@ const selectDirectory = (type: string) => {
   })()
 
 // Escucha el evento despues de seleccionar la carpeta
-window.addEventListener('message', (event) => {
-  const { selectedDirectory, typeFile } = event.data;
+window.addEventListener('selectedDirectory', (event: any) => {
+  const { selectedDirectory, typeFile } = event.detail.data;
   if (!selectedDirectory) {
     return
   }
