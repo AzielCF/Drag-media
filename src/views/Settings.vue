@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue';
 import { storeToRefs } from 'pinia'
-import buttonComponent from '@/components/ui/elemets/buttonComponent.vue';
-import selectorComponent from '@/components/ui/elemets/selectorComponent.vue';
-import inputComponent from '@/components/ui/elemets/inputComponent.vue';
-import { useApiKeyStore } from '@/modules/apiManager';
+import buttonComponent from '@/components/ui/elements/buttonComponent.vue';
+import selectorComponent from '@/components/ui/elements/selectorComponent.vue';
+import inputComponent from '@/components/ui/elements/inputComponent.vue';
+import { useApiKeyStore } from '@/stores/apiManager';
 import poppupAddKeyComponent from '@/components/poppupAddkeyComponent.vue';
 import appUpdater from '@/components/ui/sections/appUpdaterComponent.vue';
 import uppercaseFirstLetter from '@/utils/uppercaseFirstLetter.util'
