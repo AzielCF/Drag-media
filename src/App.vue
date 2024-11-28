@@ -2,12 +2,12 @@
 import { RouterView, useRoute } from 'vue-router'
 import { watch } from 'vue'
 import { storeToRefs } from 'pinia'
-import { useApiKeyStore } from './modules/apiManager'
-import CustomTitleBarComponent from './components/customTitleBarComponent.vue'
+import { useApiKeyStore } from './stores/apiManager'
+import CustomTitleBarComponent from './components/ui/elements/customTitleBarComponent.vue'
 import PopupApikeyComponent from './components/ui/sections/popupApikeyComponent.vue'
 import InputSearcherComponent from './components/inputSearcherComponent.vue'
 import navMainComponent from './components/ui/sections/navMainComponent.vue'
-import floatingButton from './components/ui/elemets/floatingButton.vue'
+import floatingButton from './components/ui/elements/floatingButton.vue'
 import PopupNotifyUpdate from './components/popupNotifyUpdate.vue'
 
 const store = useApiKeyStore()
