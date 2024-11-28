@@ -1,9 +1,4 @@
-<p style="display: flex; align-items: center;">
-  <img src="https://res.cloudinary.com/dktwu41vm/image/upload/f_auto,q_auto/sb1iojpicapjk3oicveu#gh-dark-mode-only" height="120" alt="Imagen modo oscuro" />
-  <img src="https://res.cloudinary.com/dktwu41vm/image/upload/f_webp,fl_awebp,q_auto/v1732755748/jsnv8eqwrpswdrca0j1b#gh-light-mode-only" height="120" alt="Imagen modo claro" />
-  <span style="margin-left: 10px; font-size: 28; font-weight: 400 "><b>Drag media</b>: Aplicación de Descarga de Medios con Electron, Vue 3 y Tailwind</span>
-</p>
-
+![image](https://res.cloudinary.com/dktwu41vm/image/upload/e_upscale/r_80/drag-media/pf4jk0h5zkvzpzmht5yx)
 
 ## Descripción
 
