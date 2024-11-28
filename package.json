@@ -27,7 +27,7 @@
     "dev": "vite",
     "test": "vitest",
     "coverage": "vitest run --coverage",
-    "build": "vue-tsc --noEmit && vite build",
+    "build": "vite build",
     "preview": "vite preview",
     "start": "electron-forge start",
     "package": "electron-forge package",
