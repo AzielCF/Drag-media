@@ -1,25 +1,26 @@
 module.exports = {
   packagerConfig: {
+    name: 'Drag media',
     asar: true,
+    icon: './public/icon'
   },
   rebuildConfig: {},
   makers: [
     {
       name: '@electron-forge/maker-squirrel',
-      config: {},
-    },
-    {
-      name: '@electron-forge/maker-zip',
-      platforms: ['darwin'],
+      config: {
+        iconUrl: 'https://url/to/icon.ico',
+        setupIcon: './public/windows/icon.ico'
+      }
     },
     {
       name: '@electron-forge/maker-deb',
-      config: {},
-    },
-    {
-      name: '@electron-forge/maker-rpm',
-      config: {},
-    },
+      config: {
+        options: {
+          icon: './public/linux/icon.png'
+        }
+      }
+    }
   ],
   plugins: [
     {
