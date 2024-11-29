@@ -1,16 +1,21 @@
 import { app, BrowserWindow, shell, ipcMain, dialog } from 'electron'
 import { release } from 'node:os'
 import { createRequire } from "module"; 
+import { join, dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
 const require = createRequire(import.meta.url); 
 
 const fs = require('fs')
-const https = require('https')
 const axios = require('axios');
 const os = require('os');
 const path = require('path');
+const sharp = require('sharp');
+const ffmpeg = require('@ffmpeg-installer/ffmpeg').path;
+const ffmpegProcess = require('fluent-ffmpeg');
+ffmpegProcess.setFfmpegPath(ffmpeg);
 
-import { join, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
+if(require('electron-squirrel-startup')) app.quit();
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -56,13 +61,15 @@ const indexHtml = join(process.env.DIST, 'index.html')
 async function createWindow() {
   win = new BrowserWindow({
     title: 'Drag media',
-    icon: join(process.env.VITE_PUBLIC, 'favicon.ico'),
+    icon: join(process.env.VITE_PUBLIC, './public/linux/icon.png'),
     titleBarStyle: 'hidden',
     titleBarOverlay: {
       color: '#333333',
       symbolColor: '#fff',
       height: 40
     },
+    minWidth: 380,
+    minHeight: 400,
     webPreferences: {
       preload,
       // Warning: Enable nodeIntegration and disable contextIsolation is not secure in production
@@ -96,14 +103,6 @@ async function createWindow() {
 
 }
 
-
-const iconName = "drag-and-drop.png"
-const icon = fs.createWriteStream(iconName)
-
-https.get('https://img.icons8.com/ios/50/drag-and-drop.png', (response) => {
-  response.pipe(icon)
-})
-
 app.whenReady().then(createWindow)
 
 
@@ -114,8 +113,8 @@ const createFolderIfNotExists = (folderPath) => {
 };
 
 // Obtenemos las carpetas defauld de videos y pictures  
-const videosFolder = path.join(os.homedir(), 'Videos', 'Pexels-drag');
-const imagesFolder = path.join(os.homedir(), 'Pictures', 'Pexels-drag');
+const videosFolder = path.join(os.homedir(), 'Videos', 'Drag-media');
+const imagesFolder = path.join(os.homedir(), 'Pictures', 'Drag-media');
 
 createFolderIfNotExists(videosFolder);
 createFolderIfNotExists(imagesFolder);
@@ -170,37 +169,99 @@ ipcMain.on('onDownloadFile', async (event, fileURL, fileID, fileName, fileFormat
 });
 
 ipcMain.on('ondragstart', async (event, fileURL, fileName, fileFormat, fileType, fileDirectorySave) => {
-  // Define el path del archivo
-  let filePath;
-
-  if(fileType === "img" && !fileDirectorySave){
-    filePath = path.join(imagesFolder, fileName + fileFormat);
-  } else if (fileType === "img" && fileDirectorySave) { 
-    filePath = path.join(fileDirectorySave, fileName + fileFormat);
+  const baseFolder = fileDirectorySave || (fileType === "img" ? imagesFolder : videosFolder);
+  const thumbsFolder = path.join(baseFolder, '.thumbs');
+  
+  // Crear la carpeta .thumbs si no existe
+  if (!fs.existsSync(thumbsFolder)) {
+    fs.mkdirSync(thumbsFolder, { recursive: true });
   }
 
-  if(fileType === "video" && !fileDirectorySave) {
-    filePath = path.join(videosFolder, fileName + fileFormat);
-  } else if (fileType === "video" && fileDirectorySave) { 
-    filePath = path.join(fileDirectorySave, fileName + fileFormat);
+  // Eliminar el indicador de tamaño del nombre del archivo, quedando solo el ID
+  const cleanFileName = fileName.replace(/\[.*\]/, '');
+
+  const filePath = path.join(baseFolder, fileName + fileFormat);
+  const thumbnailPath = path.join(thumbsFolder, `${cleanFileName}_thumb.jpg`); // Cambiar a .jpg
+
+  // Si la miniatura ya existe, no la volvemos a generar
+  if (fs.existsSync(thumbnailPath)) {
+    //console.log(`La miniatura para ${cleanFileName} ya existe. Usando la existente.`);
+    event.sender.startDrag({
+      file: filePath,
+      icon: thumbnailPath,
+    });
+    return;
   }
 
-  // Comprueba si el archivo ya existe
   if (!fs.existsSync(filePath)) {
-    // Si el archivo no existe, descárgalo
-    // const response = await axios.get(fileURL, { responseType: 'arraybuffer' });
-    // fs.writeFileSync(filePath, Buffer.from(response.data));
-    console.log(`El archivo no se encuentra, descarguelo para arrastrar.`);
-  } else {
-    console.log(`El archivo ${fileName + fileFormat} ya existe, no se descargará de nuevo.`);
+    console.log(`El archivo no se encuentra, descárguelo para arrastrar.`);
+    return;
   }
 
-  event.sender.startDrag({
-    file: filePath,
-    icon: iconName
-  });
-});
+  try {
+    if (fileType === "img") {
+      // Generar miniatura de imagen
+      const { width, height } = await sharp(filePath).metadata();
+      
+      // Determinar la escala para que el tamaño máximo sea 100px sin deformar la imagen
+      let scaleFactor = 1;
+      if (width > 100 || height > 100) {
+        scaleFactor = Math.min(100 / width, 100 / height); // Escalar según el tamaño mayor
+      }
+      
+      await sharp(filePath)
+        .resize({ 
+          width: Math.floor(width * scaleFactor), 
+          height: Math.floor(height * scaleFactor)
+        }) 
+        .png({ quality: 5 }) // Convertir a PNG con calidad reducida
+        .toFile(thumbnailPath);
+    } else if (fileType === "video") {
+      // Generar miniatura del video
+      const tempPngPath = path.join(thumbsFolder, `${cleanFileName}_temp.png`);
+      await new Promise((resolve, reject) => {
+        ffmpegProcess(filePath)
+          .screenshots({
+            timestamps: ['00:00:01'], // Captura en el segundo 1
+            filename: path.basename(tempPngPath),
+            folder: thumbsFolder,
+            size: '10%', // Escalar al 10% del tamaño original
+          })
+          .on('end', resolve)
+          .on('error', reject);
+      });
 
+      // Obtener las dimensiones de la imagen temporal generada
+      const { width, height } = await sharp(tempPngPath).metadata();
+      
+      // Determinar la escala para que el tamaño máximo sea 100px sin deformar la imagen
+      let scaleFactor = 1;
+      if (width > 100 || height > 100) {
+        scaleFactor = Math.min(100 / width, 100 / height); // Escalar según el tamaño mayor
+      }
+
+      // Convertir la captura PNG a JPEG de calidad reducida y ajustada
+      await sharp(tempPngPath)
+        .resize({ 
+          width: Math.floor(width * scaleFactor), 
+          height: Math.floor(height * scaleFactor)
+        })
+        .jpeg({ quality: 30 }) // Convertir a JPEG con calidad ajustada
+        .toFile(thumbnailPath);
+
+      // Eliminar el archivo temporal PNG
+      fs.unlinkSync(tempPngPath);
+    }
+
+    // Usa la miniatura como icono de arrastre
+    event.sender.startDrag({
+      file: filePath,
+      icon: thumbnailPath,
+    });
+  } catch (err) {
+    console.error("Error al generar la miniatura:", err);
+  }
+});
 
 interface ResponseData {
   photos?: string[];
@@ -244,8 +305,6 @@ ipcMain.on('onDirectoryStorage', async (event, photosDirectory, videosDirectory)
   });
 });
 
-
-
 // Función para mostrar el cuadro de diálogo de selección de directorio
 ipcMain.on('onmodal', async (event, typeFile) => {
   dialog.showOpenDialog({
@@ -258,8 +317,6 @@ ipcMain.on('onmodal', async (event, typeFile) => {
   });
 });
 // Llamar a la función cuando sea necesario
-
-
 
 app.on('window-all-closed', () => {
   win = null
