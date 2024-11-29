@@ -46,7 +46,7 @@ export  function useMediaSearch (
     
     const searchOptions: MediaSearchOptions = {
       page: page.value,
-      per_page: mediaType === "photos" ? 12 : 9,
+      per_page: mediaType === "photos" ? 12 : 10,
     };
 
     const search = await searcher[mediaType](searchOptions) as AxiosCall<any>;
