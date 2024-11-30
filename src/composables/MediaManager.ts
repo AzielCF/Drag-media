@@ -23,14 +23,14 @@ export function useMediaManager(mediaType: "photos" | "videos") {
   const { searchMedia, cancelEndpoint, mediaItems, columnCount, directoryStorage, isLoading, isAvaliableApi } =
     useMediaSearch(mediaType);
 
-  const { selectVideoQuality } = useSelectVideoQuality(
+  const { selectVideoQuality, filterMediaByQuality } = useSelectVideoQuality(
     mediaItems,
     downloadSize
   );
-
   const { updateColumnCount, groupedMedia } = useGroupedMediaColumn(
+    searchMedia,
     columnCount,
-    mediaItems
+    mediaType === "photos" ? mediaItems : filterMediaByQuality
   );
 
   const { isMediaDraggable, downloadedMediaNames } = useIsMediaDraggable(
