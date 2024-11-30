@@ -1,7 +1,7 @@
-import { Ref, ref } from "vue";
 import { useSearchStore } from "../stores/search";
 import useFetchAndLoad from "../modules/useFetchAndLoad";
 import type { AxiosCall } from "../modules/useFetchAndLoad";
+import { ref, Ref } from 'vue';
 
 interface MediaSearchOptions {
   page: number;
@@ -10,17 +10,17 @@ interface MediaSearchOptions {
 
 interface MediaSearchContext {
   columnCount: Ref<number>;
-  mediaItems: Ref;
+  mediaItems: Ref<any[]>;
   directoryStorage: string | null;
   isAvaliableApi: Ref<boolean>;
   isLoading: Ref<boolean>;
-  searchMedia: (isFromInput?: boolean) => void;
+  searchMedia: (isFromInput?: boolean) => Promise<void>;
   cancelEndpoint: () => void;
 }
 
 const { loading, callEndpoint, cancelEndpoint } = useFetchAndLoad();
 
-export  function useMediaSearch (
+export function useMediaSearch(
   mediaType: "photos" | "videos"
 ): MediaSearchContext {
   const { searcher } = useSearchStore();
@@ -30,39 +30,40 @@ export  function useMediaSearch (
   const directoryStorage = localStorage.getItem(
     `directorySave${mediaType === "photos" ? "Photos" : "Videos"}`
   );
-  const isAvaliableApi = ref(true) // Esta disponible o no la API para videos, fotos, etc
-  const page = ref(1);
-  const isLoading = ref(false);
-  const searchMedia = async (isFromInput: boolean = false) => {
+  let isAvaliableApi = true;
+  let page = 1;
+  const isLoading = ref(false); 
+
+  const searchMedia = async (isFromInput: boolean = false): Promise<void> => {
     if (isLoading.value) return;
 
     if (isFromInput) {
       mediaItems.value = [];
-      page.value = 1;
+      page = 1;
     }
 
     isLoading.value = true;
 
-    
     const searchOptions: MediaSearchOptions = {
-      page: page.value,
-      per_page: mediaType === "photos" ? 12 : 10,
+      page,
+      per_page: mediaType === "photos" ? 18 : 18,
     };
 
-    const search = await searcher[mediaType](searchOptions) as AxiosCall<any>;
+    try {
+      const search = await searcher[mediaType](searchOptions) as AxiosCall<any>;
+      const adaptResponse = search.transformResponse;
 
-    const adaptResponse = search.transformResponse;
-
-    callEndpoint(search).then((result) => {
+      const result = await callEndpoint(search);
       mediaItems.value = [...mediaItems.value, ...adaptResponse(result, mediaType)];
-      page.value += 1;
+      page += 1;
       isLoading.value = false;
-      isAvaliableApi.value = true
-    }).catch(() => {
-      isAvaliableApi.value = false
-        return new Error("Api no disponible");
-    })
+      isAvaliableApi = true;
 
+    } catch (error) {
+      isAvaliableApi = false;
+      console.error("API no disponible", error);
+      isLoading.value = false;
+    }
   };
   return {
     mediaItems,
