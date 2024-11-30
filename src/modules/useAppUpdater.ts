@@ -5,10 +5,10 @@ import packageJson from "../../package.json";
 export default function useAppUpdater() {
   const newVersionAvailable = ref(false);
   const latestRelease = ref(null);
-  const repo = "free-audio/clap-validator";
+  const repo = packageJson.repository.url.split("github.com/")[1];
   const repoUrl =
     `https://api.github.com/repos/${repo}/releases`;
-  const downloadPageUrl = `https://github.com/${repo}/releases`;
+  const downloadPageUrl = packageJson.website ? packageJson.website : `https://github.com/${repo}/releases`;
   const localCacheKey = "latest_release";
   const localPackageVersion = ref(packageJson.version); // Versión actual desde el package.json
 
@@ -80,7 +80,7 @@ export default function useAppUpdater() {
         compareVersions(localPackageVersion.value, latestReleaseData.tag_name)
       ) {
         newVersionAvailable.value = true;
-        latestRelease.value = latestReleaseData;
+        latestRelease.value = latestReleaseData.tag_name;
         saveLocalCache(latestReleaseData); // Guardar la nueva versión en caché
       } else {
         newVersionAvailable.value = false;
