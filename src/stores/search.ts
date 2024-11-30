@@ -69,10 +69,6 @@ export const useSearchStore = defineStore("search", () => {
       } else if (queryParams) {
         requestParams.key = apiKey;
       }
-  
-      
-      console.log(apiKey)
-      console.log(requestParams)
 
       const controller = loadAbort();
       const response = axios.get(`${baseUrl}${endpoints[type]}`, {
