@@ -30,7 +30,7 @@ export function useMediaSearch(
   const directoryStorage = localStorage.getItem(
     `directorySave${mediaType === "photos" ? "Photos" : "Videos"}`
   );
-  let isAvaliableApi = true;
+  const isAvaliableApi = ref(true);
   let page = 1;
   const isLoading = ref(false); 
 
@@ -57,10 +57,10 @@ export function useMediaSearch(
       mediaItems.value = [...mediaItems.value, ...adaptResponse(result, mediaType)];
       page += 1;
       isLoading.value = false;
-      isAvaliableApi = true;
+      isAvaliableApi.value = true;
 
     } catch (error) {
-      isAvaliableApi = false;
+      isAvaliableApi.value = false;
       console.error("API no disponible", error);
       isLoading.value = false;
     }
