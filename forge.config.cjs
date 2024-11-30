@@ -1,8 +1,12 @@
 module.exports = {
   packagerConfig: {
     name: 'Drag media',
-    asar: true,
-    icon: './public/icon'
+    asar: {
+      unpack: [ "**/node_modules/sharp/**/*",
+        "**/node_modules/@img/**/*", 
+        "**/node_modules/@ffmpeg-installer/**/*" ]
+    },
+    icon: './public/icon',
   },
   rebuildConfig: {},
   makers: [
@@ -19,6 +23,18 @@ module.exports = {
         options: {
           icon: './public/linux/icon.png'
         }
+      }
+    }
+  ],
+  publishers: [
+    {
+      name: '@electron-forge/publisher-github',
+      config: {
+        repository: {
+          owner: 'AzielCF',
+          name: 'Drag-media'
+        },
+        prerelease: true
       }
     }
   ],
