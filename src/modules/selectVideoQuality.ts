@@ -1,4 +1,4 @@
-import { Ref } from "vue";
+import { Ref, computed } from "vue";
 
 export interface Video {
   id: number;
@@ -98,9 +98,24 @@ export function useSelectVideoQuality(
     });
   };
 
+  const filterMediaByQuality = computed(() => {
+    const objItems: Array<Video> = mediaItemsMain.value;
+    const downloadSelect: string = downloadSizeMain.value;
+  
+    return objItems.filter((videoObj: Video) => {
+      if (videoObj.video_files) {
+        const isVertical = videoObj.height > videoObj.width;
+        const videoFile = findVideoFile(videoObj.video_files, isVertical, downloadSelect);
+        return !!videoFile; // Mantener solo los videos que cumplen con la calidad.
+      }
+      return false;
+    });
+  });
+  
   return {
     selectVideoQuality,
     findVideoUrl,
     findVideoFile,
+    filterMediaByQuality
   };
 }
