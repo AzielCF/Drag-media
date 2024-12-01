@@ -31,7 +31,7 @@ Drag media es una aplicación de escritorio construida con Electron, Vue 3 y Tai
 
 
 ## Donde comenzar (para usuarios)
-1. Visita el [sitio web](https://drag-media-web.vercel.app/) o revisa los [releases](https://github.com/AzielCF/Drag-media/releases) y descarga.
+1. Visita el [sitio web](https://drag-media.vercel.app/) o revisa los [releases](https://github.com/AzielCF/Drag-media/releases) y descarga.
 2. Instálalo en tu pc.
 3. ¡Listo!
 
