@@ -1,6 +1,6 @@
 {
   "name": "drag-media",
-  "version": "1.0.0",
+  "version": "0.0.1",
   "main": "dist-electron/main/index.js",
   "description": "-",
   "author": "Aziel Cruzado",
@@ -10,6 +10,7 @@
     "type": "git",
     "url": "https://github.com/AzielCF/Drag-media"
   },
+  "website": "https://drag-media.vercel.app/",
   "keywords": [
     "electron",
     "rollup",
@@ -31,7 +32,8 @@
     "preview": "vite preview",
     "start": "electron-forge start",
     "package": "electron-forge package",
-    "make": "electron-forge make"
+    "make": "electron-forge make",
+    "publish": "electron-forge publish"
   },
   "devDependencies": {
     "@electron-forge/cli": "7.6.0",
