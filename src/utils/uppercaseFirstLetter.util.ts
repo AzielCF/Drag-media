@@ -1,3 +1,1 @@
-export default function uppercaseFirstLetter(str: string) {
-    return str.charAt(0).toUpperCase() + str.slice(1);
-}
+export const uppercaseFirstLetter = (str: string) => str.charAt(0).toUpperCase() + str.slice(1);
