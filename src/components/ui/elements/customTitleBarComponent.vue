@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router'
 import logo from '@/components/ui/icons/logo.vue'
-import uppercaseFirstLetter from '@/utils/uppercaseFirstLetter.util'
+import { uppercaseFirstLetter } from '@/utils'
 import { useSearchStore } from '@/stores/search'
 import { storeToRefs } from 'pinia'
 
