@@ -1,13 +1,14 @@
 <script setup lang="ts">
+import packageJson from "../../package.json";
 import { ref, watch, computed } from 'vue';
-import { storeToRefs } from 'pinia'
+import { storeToRefs } from 'pinia';
 import buttonComponent from '@/components/ui/elements/buttonComponent.vue';
 import selectorComponent from '@/components/ui/elements/selectorComponent.vue';
 import inputComponent from '@/components/ui/elements/inputComponent.vue';
 import { useApiKeyStore } from '@/stores/apiManager';
 import poppupAddKeyComponent from '@/components/poppupAddkeyComponent.vue';
 import appUpdater from '@/components/ui/sections/appUpdaterComponent.vue';
-import uppercaseFirstLetter from '@/utils/uppercaseFirstLetter.util'
+import { uppercaseFirstLetter, getGitHubUserURL } from '@/utils';
 import { apiConfigs } from "@/stores/adapters/api-configs";
 
 const { apiKeyData, defaultApi } = storeToRefs(useApiKeyStore());
@@ -202,13 +203,13 @@ selectedApiVideo.value = localStorage.getItem('DefaultApiVideos') || defaultApi.
       <div style="border-bottom: 1px solid #7a7a7a; margin: 20px 0px 20px 0px;" />
       <section class="w-full pb-4">
         <h2 class="text-2xl py-2">Soporte</h2>
-        <a target="_blank" href="https://github.com/AzielCF/Pexels-drag">
+        <a target="_blank" :href="packageJson.repository.url">
           <buttonComponent class="mt-2 w-full" valueName="Repositorio de Github" />
         </a>
-        <a target="_blank" href="https://drag-media-web.vercel.app/">
+        <a target="_blank" :href="packageJson.website">
           <buttonComponent class="mt-4 w-full" valueName="Página web" />
         </a>
-        <a target="_blank" href="https://github.com/AzielCF/">
+        <a target="_blank" :href="getGitHubUserURL(packageJson.repository.url)">
           <buttonComponent class="mt-4 w-full" valueName="Autor del proyecto" />
         </a>
       </section>
@@ -229,7 +230,7 @@ selectedApiVideo.value = localStorage.getItem('DefaultApiVideos') || defaultApi.
       <div class="mt-4" style="border-bottom: 1px solid #7a7a7a;" />
       <section class="pt-5">
         <div>
-          Proyecto creado por <a target="_blank" href="https://github.com/AzielCF/">Aziel Cruzado</a>
+          Proyecto creado por <a target="_blank" :href="getGitHubUserURL(packageJson.repository.url)">Aziel Cruzado</a>
         </div>
       </section>
     </div>
