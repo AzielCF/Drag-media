@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, ipcMain, dialog } from 'electron'
+import { app, BrowserWindow, shell, ipcMain, dialog  } from 'electron'
 import { release } from 'node:os'
 import { createRequire } from "module"; 
 import { join, dirname } from 'node:path'
@@ -6,20 +6,24 @@ import { fileURLToPath } from 'node:url'
 
 const require = createRequire(import.meta.url); 
 
+if(require('electron-squirrel-startup')) app.quit();
+
+const { updateElectronApp } = require('update-electron-app');
 const fs = require('fs')
 const axios = require('axios');
 const os = require('os');
 const path = require('path');
 const sharp = require('sharp');
-const ffmpeg = require('@ffmpeg-installer/ffmpeg').path;
+const ffmpeg = require('@ffmpeg-installer/ffmpeg').path.replace('app.asar', 'app.asar.unpacked');
 const ffmpegProcess = require('fluent-ffmpeg');
-ffmpegProcess.setFfmpegPath(ffmpeg);
+const notifier = require('node-notifier');
 
-if(require('electron-squirrel-startup')) app.quit();
+ffmpegProcess.setFfmpegPath(ffmpeg);
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
+updateElectronApp(); // additional configuration options available
 // The built directory structure
 //
 // ├─┬ dist-electron
@@ -32,9 +36,7 @@ const __dirname = dirname(__filename)
 //
 process.env.DIST_ELECTRON = join(__dirname, '..')
 process.env.DIST = join(process.env.DIST_ELECTRON, '../dist')
-process.env.VITE_PUBLIC = process.env.VITE_DEV_SERVER_URL
-  ? join(process.env.DIST_ELECTRON, '../public')
-  : process.env.DIST
+process.env.PUBLIC = join(process.env.DIST_ELECTRON, '../public')
 
 // Disable GPU Acceleration for Windows 7
 if (release().startsWith('6.1')) app.disableHardwareAcceleration()
@@ -57,11 +59,11 @@ let win: BrowserWindow | null = null
 const preload = join(__dirname, '../preload/index.mjs')
 const url = process.env.VITE_DEV_SERVER_URL
 const indexHtml = join(process.env.DIST, 'index.html')
-
+const icon = app.isPackaged ? join(process.env.PUBLIC, 'linux/icon.png').replace('app.asar', 'app.asar.unpacked') : join(process.env.PUBLIC , 'linux/icon.png')
 async function createWindow() {
   win = new BrowserWindow({
     title: 'Drag media',
-    icon: join(process.env.VITE_PUBLIC, './public/linux/icon.png'),
+    icon: icon,
     titleBarStyle: 'hidden',
     titleBarOverlay: {
       color: '#333333',
@@ -125,141 +127,155 @@ ipcMain.handle('get-folders', () => {
 });
 
 
-ipcMain.on('onDownloadFile', async (event, fileURL, fileID, fileName, fileFormat, fileType, fileDirectorySave) => {
-
-  // Define el path del archivo
-  let filePath;
-
-  if(fileType === "img" && !fileDirectorySave){
-    filePath = path.join(imagesFolder, fileName + fileFormat);
-  } else if (fileType === "img" && fileDirectorySave) { 
-    filePath = path.join(fileDirectorySave, fileName + fileFormat);
-  }
-
-  if(fileType === "video" && !fileDirectorySave) {
-    filePath = path.join(videosFolder, fileName + fileFormat);
-  } else if (fileType === "video" && fileDirectorySave) { 
-    filePath = path.join(fileDirectorySave, fileName + fileFormat);
-  }
-
-  // Comprueba si el archivo ya existe
-  if (!fs.existsSync(filePath)) {
-
-    //El loader se motrará mientras descarga el archivo
-    event.sender.send('showLoader', true, fileID);
-
-    // Si el archivo no existe, descárgalo
-    try {
-      const response = await axios.get(fileURL, { responseType: 'arraybuffer' });
-      fs.writeFileSync(filePath, Buffer.from(response.data));
-      console.log(`El archivo se encuentra descargado, esta listo para arrastrar.`);
-      
-      // Notificar al proceso de representación (renderer) que la descarga se ha completado
-      event.sender.send('file-downloaded', fileName, filePath); // Envía el nombre del archivo y su ruta
-    } catch (error) {
-      console.error(`Error al descargar el archivo: ${error.message}`);
-    } finally {
-      // Ocultar el círculo de carga (ya sea después de la descarga exitosa o en caso de error)
-      event.sender.send('showLoader', false, fileID);
-    }
-  } else {
-    console.log(`El archivo ${fileName + fileFormat} ya existe, no se descargará de nuevo.`);
-  }
-
-});
-
-ipcMain.on('ondragstart', async (event, fileURL, fileName, fileFormat, fileType, fileDirectorySave) => {
-  const baseFolder = fileDirectorySave || (fileType === "img" ? imagesFolder : videosFolder);
-  const thumbsFolder = path.join(baseFolder, '.thumbs');
+let notificationId;
+function showNotification(fileName, fileFormat, icon) {
   
+  // Genera un nuevo ID de notificación si es necesario
+  notificationId = notificationId || new Date().getTime().toString();
+
+  notifier.notify({
+    title: 'Medio descargado', 
+    message: `${fileName + fileFormat}, listo para arrastrar`, 
+    sound: true,
+    wait: false,
+    icon: icon,
+    id: notificationId,
+    appID: 'Drag Media',
+    contentImage: icon,
+  }, function (err, response, metadata) { 
+    if (err) { 
+      console.error(err); 
+    } else { 
+      console.log('Notificación mostrada exitosamente:', response, metadata); 
+    }
+  });
+}
+
+const createThumbnail = async (filePath, fileName, fileType, thumbsFolder, returnPath = false) => {
+  const cleanFileName = fileName.replace(/\[.*\]/, '');
+  const thumbnailPath = path.join(thumbsFolder, `${cleanFileName}_thumb.jpg`);
+
   // Crear la carpeta .thumbs si no existe
   if (!fs.existsSync(thumbsFolder)) {
     fs.mkdirSync(thumbsFolder, { recursive: true });
   }
 
-  // Eliminar el indicador de tamaño del nombre del archivo, quedando solo el ID
-  const cleanFileName = fileName.replace(/\[.*\]/, '');
+  try {
+    if (fileType === "img") {
+      const { width, height } = await sharp(filePath).metadata();
+      let scaleFactor = 1;
 
-  const filePath = path.join(baseFolder, fileName + fileFormat);
-  const thumbnailPath = path.join(thumbsFolder, `${cleanFileName}_thumb.jpg`); // Cambiar a .jpg
+      if (width > 100 || height > 100) {
+        scaleFactor = Math.min(100 / width, 100 / height);
+      }
 
-  // Si la miniatura ya existe, no la volvemos a generar
-  if (fs.existsSync(thumbnailPath)) {
-    //console.log(`La miniatura para ${cleanFileName} ya existe. Usando la existente.`);
-    event.sender.startDrag({
-      file: filePath,
-      icon: thumbnailPath,
-    });
-    return;
+      await sharp(filePath)
+        .resize({
+          width: Math.floor(width * scaleFactor),
+          height: Math.floor(height * scaleFactor),
+        })
+        .png({ quality: 5 })
+        .toFile(thumbnailPath);
+    } else if (fileType === "video") {
+      const tempPngPath = path.join(thumbsFolder, `${cleanFileName}_temp.png`);
+      await new Promise((resolve, reject) => {
+        ffmpegProcess(filePath)
+          .screenshots({
+            timestamps: ['00:00:01'],
+            filename: path.basename(tempPngPath),
+            folder: thumbsFolder,
+            size: '10%',
+          })
+          .on('end', resolve)
+          .on('error', reject);
+      });
+
+      const { width, height } = await sharp(tempPngPath).metadata();
+      let scaleFactor = 1;
+
+      if (width > 100 || height > 100) {
+        scaleFactor = Math.min(100 / width, 100 / height);
+      }
+
+      await sharp(tempPngPath)
+        .resize({
+          width: Math.floor(width * scaleFactor),
+          height: Math.floor(height * scaleFactor),
+        })
+        .jpeg({ quality: 30 })
+        .toFile(thumbnailPath);
+
+      fs.unlinkSync(tempPngPath);
+    }
+
+    return returnPath ? thumbnailPath : true;
+  } catch (err) {
+    console.error("Error al generar la miniatura:", err);
+    return null;
   }
+};
+
+ipcMain.on('onDownloadFile', async (event, fileURL, fileID, fileName, fileFormat, fileType, fileDirectorySave) => {
+  let filePath;
+
+  if (fileType === "img" && !fileDirectorySave) {
+    filePath = path.join(imagesFolder, fileName + fileFormat);
+  } else if (fileType === "img" && fileDirectorySave) { 
+    filePath = path.join(fileDirectorySave, fileName + fileFormat);
+  }
+
+  if (fileType === "video" && !fileDirectorySave) {
+    filePath = path.join(videosFolder, fileName + fileFormat);
+  } else if (fileType === "video" && fileDirectorySave) { 
+    filePath = path.join(fileDirectorySave, fileName + fileFormat);
+  }
+
+  if (!fs.existsSync(filePath)) {
+    event.sender.send('showLoader', true, fileID);
+    try {
+      const response = await axios.get(fileURL, { responseType: 'arraybuffer' });
+      fs.writeFileSync(filePath, Buffer.from(response.data));
+
+      const baseFolder = fileDirectorySave || (fileType === "img" ? imagesFolder : videosFolder);
+      const thumbsFolder = path.join(baseFolder, '.thumbs');
+
+      const thumbnailPath = await createThumbnail(filePath, fileName, fileType, thumbsFolder, true);
+
+      showNotification(fileName, fileFormat, thumbnailPath);
+      event.sender.send('file-downloaded', fileName, filePath, thumbnailPath); // Envía el path de la miniatura
+    } catch (error) {
+      console.error(`Error al descargar el archivo: ${error.message}`);
+    } finally {
+      event.sender.send('showLoader', false, fileID);
+    }
+  } else {
+    console.log(`El archivo ${fileName + fileFormat} ya existe, no se descargará de nuevo.`);
+  }
+});
+
+ipcMain.on('ondragstart', async (event, fileURL, fileName, fileFormat, fileType, fileDirectorySave) => {
+  const baseFolder = fileDirectorySave || (fileType === "img" ? imagesFolder : videosFolder);
+  const filePath = path.join(baseFolder, fileName + fileFormat);
 
   if (!fs.existsSync(filePath)) {
     console.log(`El archivo no se encuentra, descárguelo para arrastrar.`);
     return;
   }
 
-  try {
-    if (fileType === "img") {
-      // Generar miniatura de imagen
-      const { width, height } = await sharp(filePath).metadata();
-      
-      // Determinar la escala para que el tamaño máximo sea 100px sin deformar la imagen
-      let scaleFactor = 1;
-      if (width > 100 || height > 100) {
-        scaleFactor = Math.min(100 / width, 100 / height); // Escalar según el tamaño mayor
-      }
-      
-      await sharp(filePath)
-        .resize({ 
-          width: Math.floor(width * scaleFactor), 
-          height: Math.floor(height * scaleFactor)
-        }) 
-        .png({ quality: 5 }) // Convertir a PNG con calidad reducida
-        .toFile(thumbnailPath);
-    } else if (fileType === "video") {
-      // Generar miniatura del video
-      const tempPngPath = path.join(thumbsFolder, `${cleanFileName}_temp.png`);
-      await new Promise((resolve, reject) => {
-        ffmpegProcess(filePath)
-          .screenshots({
-            timestamps: ['00:00:01'], // Captura en el segundo 1
-            filename: path.basename(tempPngPath),
-            folder: thumbsFolder,
-            size: '10%', // Escalar al 10% del tamaño original
-          })
-          .on('end', resolve)
-          .on('error', reject);
-      });
+  const thumbsFolder = path.join(baseFolder, '.thumbs');
+  const thumbnailPath = path.join(thumbsFolder, `${fileName.replace(/\[.*\]/, '')}_thumb.jpg`);
 
-      // Obtener las dimensiones de la imagen temporal generada
-      const { width, height } = await sharp(tempPngPath).metadata();
-      
-      // Determinar la escala para que el tamaño máximo sea 100px sin deformar la imagen
-      let scaleFactor = 1;
-      if (width > 100 || height > 100) {
-        scaleFactor = Math.min(100 / width, 100 / height); // Escalar según el tamaño mayor
-      }
+  const thumb = fs.existsSync(thumbnailPath)
+    ? thumbnailPath
+    : await createThumbnail(filePath, fileName, fileType, thumbsFolder, true);
 
-      // Convertir la captura PNG a JPEG de calidad reducida y ajustada
-      await sharp(tempPngPath)
-        .resize({ 
-          width: Math.floor(width * scaleFactor), 
-          height: Math.floor(height * scaleFactor)
-        })
-        .jpeg({ quality: 30 }) // Convertir a JPEG con calidad ajustada
-        .toFile(thumbnailPath);
-
-      // Eliminar el archivo temporal PNG
-      fs.unlinkSync(tempPngPath);
-    }
-
-    // Usa la miniatura como icono de arrastre
+  if (thumb) {
     event.sender.startDrag({
       file: filePath,
-      icon: thumbnailPath,
+      icon: thumb,
     });
-  } catch (err) {
-    console.error("Error al generar la miniatura:", err);
+  } else {
+    console.error("No se pudo generar o encontrar la miniatura.");
   }
 });
 
@@ -316,7 +332,6 @@ ipcMain.on('onmodal', async (event, typeFile) => {
     console.log(err);
   });
 });
-// Llamar a la función cuando sea necesario
 
 app.on('window-all-closed', () => {
   win = null
