@@ -29,7 +29,7 @@ onMounted(async () => {
   <button ref="buttonRef" popovertarget="notifyUpdate" style="display: none;"></button>
 
   <PoppupComponent id="notifyUpdate">
-    <div class="w-full my-14">
+    <div class="w-full my-14 text-gray-50">
       <div class="w-full mt-3 pb-3">
         <h3 class="text-2xl">Nueva actualización disponible v{{ latestRelease }}</h3>
         <span>Le espera mas estabilidad y posibles funcionalidades nuevas.</span>
